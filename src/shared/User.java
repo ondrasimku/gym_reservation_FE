@@ -1,8 +1,8 @@
-package client;
+package shared;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import client.Lesson;
+import shared.Lesson;
 
 public class User implements Serializable {
     private static final long serialVersionUID = 1L;

@@ -9,15 +9,13 @@ import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
-import client.User;
+import shared.User;
 
 public class MainWindowController {
 
     private Socket clientSocket;
-    private BufferedReader serverInput;
-    private PrintWriter clientOutput;
-    private ObjectInputStream serverObjectInput;
-    private ObjectOutputStream clientObjectOutput;
+    private ObjectInputStream serverInput;
+    private ObjectOutputStream clientOutput;
     private String SOCKET_HOST;
     private int SOCKET_PORT;
     private User user;
@@ -48,13 +46,18 @@ public class MainWindowController {
 
             String command = "login:" + username + ":" + password;
             System.out.println("Sending to server -->\"" + command + "\"");
-            clientOutput.println(command);
-            clientOutput.flush();
+            try {
+                clientOutput.writeObject(command);
+                clientOutput.flush();
+            } catch (IOException ioException) {
+                System.err.println("Error sending login info, server might be down");
+                System.err.println(ioException.getMessage());
+            }
             System.out.println("Command send!");
 
             try {
                 String serverResponse;
-                serverResponse = serverInput.readLine();
+                serverResponse = (String)serverInput.readObject();
                 if(serverResponse.equals("login:failed")) {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Login status");
@@ -68,16 +71,20 @@ public class MainWindowController {
                     alert.setContentText("Switch windows!");
                     alert.show();
                     // Read User object with his lessons
-                    /*try {
-                        this.user = (User)serverObjectInput.readObject();
+                    try {
+                        this.user = (User)serverInput.readObject();
+                        System.out.println(this.user.toString());
                     } catch (ClassNotFoundException classNotFoundException) {
                         System.err.println("Invalid class input exception");
                         classNotFoundException.printStackTrace();
-                    }*/
+                    }
                 }
                 System.out.println("Server says " + serverResponse);
             } catch (IOException ioException) {
                 reconnect();
+            } catch (ClassNotFoundException classNotFoundException) {
+                System.err.println("This should not happen!");
+                classNotFoundException.printStackTrace();
             }
         }
 
@@ -96,9 +103,11 @@ public class MainWindowController {
         try {
             this.clientSocket = new Socket(SOCKET_HOST, SOCKET_PORT);
             this.clientSocket.setSoTimeout(5000);
-            BufferedReader serverInput = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
-            PrintWriter clientOutput = new PrintWriter(this.clientSocket.getOutputStream(), true);
-            setSocket(this.clientSocket);
+            this.clientOutput = new ObjectOutputStream(this.clientSocket.getOutputStream());
+            this.clientOutput.flush();
+            this.serverInput = new ObjectInputStream(this.clientSocket.getInputStream());
+            this.SOCKET_HOST = this.clientSocket.getInetAddress().getHostAddress();
+            this.SOCKET_PORT = this.clientSocket.getPort();
             btnRetry.setDisable(true);
             setStatus("Connected", Color.GREEN);
         } catch(ConnectException e) {
@@ -112,16 +121,6 @@ public class MainWindowController {
             System.err.println("Exception while opening Reader and Printer in reconnect()");
             System.err.println(e.getMessage());
         }
-    }
-
-    public void setSocket(Socket socket) throws IOException {
-        this.clientSocket = socket;
-        this.SOCKET_HOST = socket.getInetAddress().getHostAddress();
-        this.SOCKET_PORT = socket.getPort();
-        this.serverInput = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        this.clientOutput = new PrintWriter(socket.getOutputStream(), true);
-        //this.serverObjectInput = new ObjectInputStream(socket.getInputStream());
-       // this.clientObjectOutput = new ObjectOutputStream(socket.getOutputStream());
     }
 
     public void init(int port, String host) {
