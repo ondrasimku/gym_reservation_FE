@@ -5,21 +5,22 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.paint.Color;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
+import client.User;
 
 public class MainWindowController {
 
     private Socket clientSocket;
     private BufferedReader serverInput;
     private PrintWriter clientOutput;
+    private ObjectInputStream serverObjectInput;
+    private ObjectOutputStream clientObjectOutput;
     private String SOCKET_HOST;
     private int SOCKET_PORT;
+    private User user;
 
 
     @FXML
@@ -54,24 +55,36 @@ public class MainWindowController {
             try {
                 String serverResponse;
                 serverResponse = serverInput.readLine();
+                if(serverResponse.equals("login:failed")) {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Login status");
+                    alert.setHeaderText("Login failed!");
+                    alert.setContentText("Wrong username or password!");
+                    alert.show();
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Login status");
+                    alert.setHeaderText("Login successfull!");
+                    alert.setContentText("Switch windows!");
+                    alert.show();
+                    // Read User object with his lessons
+                    /*try {
+                        this.user = (User)serverObjectInput.readObject();
+                    } catch (ClassNotFoundException classNotFoundException) {
+                        System.err.println("Invalid class input exception");
+                        classNotFoundException.printStackTrace();
+                    }*/
+                }
                 System.out.println("Server says " + serverResponse);
             } catch (IOException ioException) {
-                try {
-                    reconnect();
-                } catch (IOException exception) {
-
-                }
+                reconnect();
             }
         }
 
     }
 
     public void btnRetryHandler(ActionEvent e) {
-        try {
             reconnect();
-        } catch (IOException ioException) {
-
-        }
     }
 
     public void setStatus(String status, Color color) {
@@ -79,7 +92,7 @@ public class MainWindowController {
         this.labelStatus.setTextFill(color);
     }
 
-    public void reconnect() throws IOException {
+    public void reconnect() {
         try {
             this.clientSocket = new Socket(SOCKET_HOST, SOCKET_PORT);
             this.clientSocket.setSoTimeout(5000);
@@ -89,9 +102,15 @@ public class MainWindowController {
             btnRetry.setDisable(true);
             setStatus("Connected", Color.GREEN);
         } catch(ConnectException e) {
-            System.out.println("Connection failed. Retrying...");
+            System.err.println("Connection failed. Retrying...");
+            System.err.println(e.getMessage());
             btnRetry.setDisable(false);
             setStatus("Not connected", Color.RED);
+        } catch(IOException e) {
+            btnRetry.setDisable(false);
+            setStatus("Not connected", Color.RED);
+            System.err.println("Exception while opening Reader and Printer in reconnect()");
+            System.err.println(e.getMessage());
         }
     }
 
@@ -101,17 +120,15 @@ public class MainWindowController {
         this.SOCKET_PORT = socket.getPort();
         this.serverInput = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.clientOutput = new PrintWriter(socket.getOutputStream(), true);
+        //this.serverObjectInput = new ObjectInputStream(socket.getInputStream());
+       // this.clientObjectOutput = new ObjectOutputStream(socket.getOutputStream());
     }
 
     public void init(int port, String host) {
         this.SOCKET_PORT = port;
         this.SOCKET_HOST = host;
-        try {
-            reconnect();
-        } catch (IOException e) {
-            btnRetry.setDisable(false);
-            setStatus("Not connected", Color.RED);
-        }
+        this.user = null;
+        reconnect();
     }
 
 }
