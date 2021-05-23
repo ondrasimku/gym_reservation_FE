@@ -4,6 +4,7 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.io.BufferedReader;
@@ -23,27 +24,30 @@ public class MainWindow extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception{
 
-        while(!connected) {
-            try {
-                socket = new Socket(SERVER_HOST, SERVER_PORT);
-                connected = true;
-            } catch(ConnectException e) {
-                System.out.println("Connection failed. Retrying...");
-                try { Thread.sleep(2000); }
-                catch (InterruptedException ie) { ie.printStackTrace(); }
-            }
-        }
-
-        BufferedReader serverInput = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        PrintWriter clientOutput = new PrintWriter(socket.getOutputStream(), true);
 
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("MainWindow.fxml"));
         Parent loginScene = fxmlLoader.load();
         MainWindowController controller = fxmlLoader.getController();
-        controller.setSocket(socket);
         primaryStage.setTitle("Lessons");
         primaryStage.setScene(new Scene(loginScene, 300, 275));
         primaryStage.show();
+        controller.init(SERVER_PORT, SERVER_HOST);
+        /*while(!connected) {
+            try {
+                socket = new Socket(SERVER_HOST, SERVER_PORT);
+                socket.setSoTimeout(5000);
+                BufferedReader serverInput = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter clientOutput = new PrintWriter(socket.getOutputStream(), true);
+                controller.setSocket(socket);
+                controller.setStatus("Connected", Color.GREEN);
+                connected = true;
+            } catch(ConnectException e) {
+                System.out.println("Connection failed. Retrying...");
+                controller.setStatus("Connecting", Color.RED);
+                try { Thread.sleep(2000); }
+                catch (InterruptedException ie) { ie.printStackTrace(); }
+            }
+        }*/
     }
 
 
