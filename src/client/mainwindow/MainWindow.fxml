@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.mainwindow.MainWindowController">
+   <children>
+      <TableView fx:id="tableViewLessons" layoutX="5.0" layoutY="14.0" prefHeight="312.0" prefWidth="591.0">
+        <columns>
+          <TableColumn fx:id="clnDate" prefWidth="125.0" text="Date" />
+            <TableColumn fx:id="clnName" prefWidth="79.0" text="Name" />
+            <TableColumn fx:id="clnText" prefWidth="386.0" text="Text" />
+        </columns>
+      </TableView>
+      <Button fx:id="btnBookOut" layoutX="181.0" layoutY="350.0" mnemonicParsing="false" onAction="#btnBookOutHandler" prefHeight="31.0" prefWidth="97.0" text="Book out" />
+      <Button fx:id="btnLessonsList" layoutX="301.0" layoutY="350.0" mnemonicParsing="false" onAction="#btnLessonsListHandler" prefHeight="31.0" prefWidth="97.0" text="Lessons list" />
+   </children>
+</AnchorPane>

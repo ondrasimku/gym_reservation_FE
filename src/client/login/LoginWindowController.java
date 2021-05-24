@@ -1,7 +1,11 @@
-package client;
+package client.login;
 
+import client.register.RegisterWindowController;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.paint.Color;
 
@@ -9,9 +13,14 @@ import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
-import shared.User;
 
-public class MainWindowController {
+import javafx.stage.Stage;
+import shared.User;
+import client.mainwindow.MainWindowController;
+
+public class LoginWindowController {
+
+    private Stage primaryStage;
 
     private Socket clientSocket;
     private ObjectInputStream serverInput;
@@ -22,9 +31,7 @@ public class MainWindowController {
 
 
     @FXML
-    private Button btnLogin;
-    @FXML
-    private Button btnRetry;
+    private Button btnLogin, btnRetry, btnRegister;
     @FXML
     private TextField fieldUsername;
     @FXML
@@ -35,11 +42,7 @@ public class MainWindowController {
     public void btnLoginHandler(ActionEvent e) {
 
         if(fieldPassword.getText().isEmpty() || fieldUsername.getText().isEmpty()) {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Login status");
-            alert.setHeaderText("Login failed!");
-            alert.setContentText("You must provide username and password!");
-            alert.show();
+            loginAlert(Alert.AlertType.WARNING, "Login failed!","You must provide username and password!");
         } else {
             String username = fieldUsername.getText();
             String password = fieldPassword.getText();
@@ -59,22 +62,14 @@ public class MainWindowController {
                 String serverResponse;
                 serverResponse = (String)serverInput.readObject();
                 if(serverResponse.equals("login:failed")) {
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Login status");
-                    alert.setHeaderText("Login failed!");
-                    alert.setContentText("Wrong username or password!");
-                    alert.show();
+                    loginAlert(Alert.AlertType.ERROR, "Login failed!","Wrong username or password!");
                 } else {
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setTitle("Login status");
-                    alert.setHeaderText("Login successfull!");
-                    alert.setContentText("Switch windows!");
-                    alert.show();
                     // Read User object with his lessons
                     try {
                         this.user = (User)serverInput.readObject();
-                        System.out.println(this.user.toString());
+                        openMainWindow();
                     } catch (ClassNotFoundException classNotFoundException) {
+                        loginAlert(Alert.AlertType.ERROR, "Login failed!","Error fetching user info from server");
                         System.err.println("Invalid class input exception");
                         classNotFoundException.printStackTrace();
                     }
@@ -88,6 +83,16 @@ public class MainWindowController {
             }
         }
 
+    }
+
+    public void btnRegisterHandler(ActionEvent e) {
+        try {
+            openRegisterWindow();
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+        } catch (ClassNotFoundException classNotFoundException) {
+            classNotFoundException.printStackTrace();
+        }
     }
 
     public void btnRetryHandler(ActionEvent e) {
@@ -123,11 +128,55 @@ public class MainWindowController {
         }
     }
 
-    public void init(int port, String host) {
+    public void init(int port, String host, Stage primaryStage) {
         this.SOCKET_PORT = port;
         this.SOCKET_HOST = host;
         this.user = null;
+        this.primaryStage = primaryStage;
         reconnect();
+    }
+
+    public void initAfterRegister(Stage primaryStage,
+                                  Socket clientSocket,
+                                  ObjectInputStream serverInput,
+                                  ObjectOutputStream clientOutput,
+                                  String SOCKET_HOST,
+                                  int SOCKET_PORT,
+                                  User user) {
+        this.primaryStage = primaryStage;
+        this.clientSocket = clientSocket;
+        this.serverInput = serverInput;
+        this.clientOutput = clientOutput;
+        this.SOCKET_HOST = SOCKET_HOST;
+        this.SOCKET_PORT = SOCKET_PORT;
+        this.user = user;
+        reconnect();
+    }
+
+    private void loginAlert(Alert.AlertType type,String header,String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Login status");
+        alert.setHeaderText(header);
+        alert.setContentText(message);
+        alert.show();
+    }
+
+    private void openMainWindow() throws IOException, ClassNotFoundException {
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/client/mainwindow/MainWindow.fxml"));
+        Parent mainScene = fxmlLoader.load();
+        MainWindowController mainController = fxmlLoader.getController();
+        mainController.init(primaryStage, clientSocket, serverInput, clientOutput, SOCKET_HOST, SOCKET_PORT, user);
+        this.primaryStage.close();
+        this.primaryStage.setScene(new Scene(mainScene, 600, 400));
+        this.primaryStage.show();
+    }
+
+    private void openRegisterWindow() throws IOException, ClassNotFoundException {
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/client/register/RegisterWindow.fxml"));
+        Parent mainScene = fxmlLoader.load();
+        RegisterWindowController mainController = fxmlLoader.getController();
+        mainController.init(primaryStage, clientSocket, serverInput, clientOutput, SOCKET_HOST, SOCKET_PORT, user);
+        this.primaryStage.setScene(new Scene(mainScene, 304, 305));
     }
 
 }
