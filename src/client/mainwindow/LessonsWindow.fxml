@@ -17,6 +17,7 @@
         <Button fx:id="btnBookIn" layoutX="181.0" layoutY="350.0" mnemonicParsing="false" onAction="#btnBookInHandler" prefHeight="31.0" prefWidth="97.0" text="Book in" />
         <Button fx:id="btnBack" layoutX="301.0" layoutY="350.0" mnemonicParsing="false" onAction="#btnBackHandler" prefHeight="31.0" prefWidth="97.0" text="Back" />
       <Button fx:id="btnDelete" layoutX="489.0" layoutY="350.0" mnemonicParsing="false" onAction="#btnDeleteHandler" prefHeight="31.0" prefWidth="97.0" text="Delete" />
+      <Button fx:id="btnAddLesson" layoutX="14.0" layoutY="350.0" mnemonicParsing="false" onAction="#btnAddLessonHandler" prefHeight="31.0" prefWidth="97.0" text="Add lesson" />
     </children>
 
 </AnchorPane>

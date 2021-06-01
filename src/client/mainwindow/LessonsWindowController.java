@@ -32,7 +32,7 @@ public class LessonsWindowController {
     private ObservableList<Lesson> list;
 
     @FXML
-    private Button btnBack, btnBookIn, btnDelete;
+    private Button btnBack, btnBookIn, btnDelete, btnAddLesson;
     @FXML
     private TableView<Lesson> tableViewLessons;
     @FXML
@@ -149,6 +149,14 @@ public class LessonsWindowController {
         }
     }
 
+    public void btnAddLessonHandler(ActionEvent e) throws IOException {
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/client/mainwindow/AddLessonWindow.fxml"));
+        Parent mainScene = fxmlLoader.load();
+        AddLessonWindowController mainController = fxmlLoader.getController();
+        mainController.init(primaryStage, clientSocket, serverInput, clientOutput, SOCKET_HOST, SOCKET_PORT, user);
+        this.primaryStage.setScene(new Scene(mainScene, 326.0, 341.0));
+    }
+
     private ObservableList<Lesson> getLessons() {
         ObservableList<Lesson> lessons = FXCollections.observableArrayList(user.getUpcomingLessons());
         return lessons;
@@ -197,8 +205,10 @@ public class LessonsWindowController {
         this.user = user;
         if(this.user.getIs_instructor() == 1) {
             btnDelete.setVisible(true);
+            btnAddLesson.setVisible(true);
         } else {
             btnDelete.setVisible(false);
+            btnAddLesson.setVisible(false);
         }
         this.clnDate.setCellValueFactory(new PropertyValueFactory<Lesson, String>("date"));
         this.clnName.setCellValueFactory(new PropertyValueFactory<Lesson, String>("name"));

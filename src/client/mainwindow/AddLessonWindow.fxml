@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane prefHeight="341.0" prefWidth="326.0" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.mainwindow.AddLessonWindowController">
+   <children>
+      <DatePicker fx:id="datePicker" layoutX="76.0" layoutY="21.0" />
+      <Label layoutX="29.0" layoutY="25.0" text="Date:" />
+      <Label layoutX="28.0" layoutY="104.0" text="Time:" />
+      <TextArea fx:id="fieldText" layoutX="76.0" layoutY="156.0" prefHeight="71.0" prefWidth="205.0" promptText="Short text about this lesson" />
+      <TextField fx:id="fieldTime" layoutX="76.0" layoutY="109.0" promptText="hh:mm" />
+      <Label layoutX="28.0" layoutY="183.0" text="Text:" />
+      <Button fx:id="btnAdd" layoutX="85.0" layoutY="271.0" mnemonicParsing="false" onAction="#btnAddHandler" prefHeight="37.0" prefWidth="78.0" text="Add" />
+      <Button fx:id="btnBack" layoutX="179.0" layoutY="271.0" mnemonicParsing="false" onAction="#btnBackHandler" prefHeight="37.0" prefWidth="78.0" text="Back" />
+      <TextField fx:id="fieldName" layoutX="76.0" layoutY="63.0" promptText="short name" />
+      <Label layoutX="27.0" layoutY="67.0" text="Name" />
+   </children>
+</AnchorPane>
