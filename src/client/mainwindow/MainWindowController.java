@@ -1,6 +1,8 @@
 package client.mainwindow;
 
+import client.Debug;
 import client.register.RegisterWindowController;
+import client.socketmanager.SocketManager;
 import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -27,12 +29,7 @@ import java.util.Optional;
 public class MainWindowController {
 
     private Stage primaryStage;
-
-    private Socket clientSocket;
-    private ObjectInputStream serverInput;
-    private ObjectOutputStream clientOutput;
-    private String SOCKET_HOST;
-    private int SOCKET_PORT;
+    private SocketManager socketManager;
     private User user;
     private ObservableList<Lesson> list;
 
@@ -49,81 +46,71 @@ public class MainWindowController {
             Alert(Alert.AlertType.ERROR, "Bookout status" ,"Bookout failed!","Select lesson!");
             return;
         }
+
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Confirmation Dialog");
         alert.setHeaderText("Book out lesson");
         alert.setContentText("Are sure you want to to book out this lesson?");
         Optional<ButtonType> result = alert.showAndWait();
-        if(result.get() == ButtonType.OK) {
 
+        if(result.get() == ButtonType.OK) {
             String command = "bookout:" + selectedLesson.getID() + ":" + this.user.getId_user()
                     + ":" + this.user.getUsername() + ":" + this.user.getPassword();
-            System.out.println("Sending to server -->\"" + command + "\"");
-            try {
-                clientOutput.writeObject(command);
-                clientOutput.flush();
-            } catch (IOException ioException) {
-                System.err.println("Error sending bookout info, server might be down");
-                System.err.println(ioException.getMessage());
-            }
 
             try {
+                socketManager.clientOutput.writeObject(command);
+                socketManager.clientOutput.flush();
                 String serverResponse;
-                serverResponse = (String)serverInput.readObject();
+                serverResponse = (String)socketManager.serverInput.readObject();
+
                 if(serverResponse.equals("bookout:failed")) {
                     Alert(Alert.AlertType.ERROR, "Bookout status" ,"Bookout failed!","Something went wrong!");
                 } else {
                     Alert(Alert.AlertType.INFORMATION, "Bookout status" ,"Bookout successfull!","You got booked out!");
-                    try {
-                        this.user = (User)serverInput.readObject();
-                        this.list.removeAll();
-                        this.list = getLessons();
-                        this.tableViewLessons.setItems(this.list);
-                    } catch (ClassNotFoundException classNotFoundException) {
-                        Alert(Alert.AlertType.ERROR, "Bookout status" ,"Bookout failed!","Error fetching user info!");
-                        System.err.println("Invalid class input exception");
-                        classNotFoundException.printStackTrace();
-                    }
+                    this.user = (User)socketManager.serverInput.readObject();
+                    this.list.removeAll();
+                    this.list = getLessons();
+                    this.tableViewLessons.setItems(this.list);
                 }
             } catch (IOException ioException) {
-                System.err.println("Lost connection!");
+                if(Debug.debug_mode) {
+                    System.err.println("Error sending bookout info, server might be down");
+                    System.err.println(ioException.getMessage());
+                }
                 reconnect();
             } catch (ClassNotFoundException classNotFoundException) {
-                System.err.println("This should not happen!");
-                classNotFoundException.printStackTrace();
+                if(Debug.debug_mode) {
+                    System.err.println("Trying to get non-existent class!");
+                    classNotFoundException.printStackTrace();
+                }
+            }
+
+        }
+    }
+
+    public void btnLessonsListHandler(ActionEvent e) {
+        openLessonsWindow();
+    }
+
+    public void reconnect() {
+        try {
+            socketManager.reconnect();
+        } catch(ConnectException e) {
+            if(Debug.debug_mode) {
+                System.err.println("Connection failed.");
+                System.err.println(e.getMessage());
+            }
+        } catch(IOException e) {
+            if(Debug.debug_mode) {
+                System.err.println("Exception while opening Reader and Printer in reconnect()");
+                System.err.println(e.getMessage());
             }
         }
     }
 
-    private ObservableList<Lesson> getLessons() {
-        ObservableList<Lesson> lessons = FXCollections.observableArrayList(user.getLessons());
-        return lessons;
-    }
-
-    public void btnLessonsListHandler(ActionEvent e) {
-        try {
-            openLessonsWindow();
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-        } catch (ClassNotFoundException classNotFoundException) {
-            classNotFoundException.printStackTrace();
-        }
-    }
-
-
-    public void init(Stage primaryStage,
-                     Socket clientSocket,
-                     ObjectInputStream serverInput,
-                     ObjectOutputStream clientOutput,
-                     String SOCKET_HOST,
-                     int SOCKET_PORT,
-                     User user) {
+    public void init(Stage primaryStage, SocketManager socketManager, User user) {
         this.primaryStage = primaryStage;
-        this.clientSocket = clientSocket;
-        this.serverInput = serverInput;
-        this.clientOutput = clientOutput;
-        this.SOCKET_HOST = SOCKET_HOST;
-        this.SOCKET_PORT = SOCKET_PORT;
+        this.socketManager = socketManager;
         this.user = user;
         this.clnDate.setCellValueFactory(new PropertyValueFactory<Lesson, String>("date"));
         this.clnName.setCellValueFactory(new PropertyValueFactory<Lesson, String>("name"));
@@ -135,6 +122,11 @@ public class MainWindowController {
         this.tableViewLessons.setItems(this.list);
     }
 
+    private ObservableList<Lesson> getLessons() {
+        ObservableList<Lesson> lessons = FXCollections.observableArrayList(user.getLessons());
+        return lessons;
+    }
+
     private void Alert(Alert.AlertType type, String title,String header,String message) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
@@ -143,29 +135,18 @@ public class MainWindowController {
         alert.show();
     }
 
-    public void reconnect() {
+    private void openLessonsWindow() {
         try {
-            this.clientSocket = new Socket(SOCKET_HOST, SOCKET_PORT);
-            this.clientSocket.setSoTimeout(5000);
-            this.clientOutput = new ObjectOutputStream(this.clientSocket.getOutputStream());
-            this.clientOutput.flush();
-            this.serverInput = new ObjectInputStream(this.clientSocket.getInputStream());
-            this.SOCKET_HOST = this.clientSocket.getInetAddress().getHostAddress();
-            this.SOCKET_PORT = this.clientSocket.getPort();
-        } catch(ConnectException e) {
-            System.err.println("Connection failed.");
-            System.err.println(e.getMessage());
-        } catch(IOException e) {
-            System.err.println("Exception while opening Reader and Printer in reconnect()");
-            System.err.println(e.getMessage());
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/client/mainwindow/LessonsWindow.fxml"));
+            Parent mainScene = fxmlLoader.load();
+            LessonsWindowController mainController = fxmlLoader.getController();
+            mainController.init(primaryStage, socketManager, user);
+            this.primaryStage.setScene(new Scene(mainScene, 600, 400));
+        } catch (IOException ioException) {
+            if(Debug.debug_mode)
+            {
+                ioException.printStackTrace();
+            }
         }
-    }
-
-    private void openLessonsWindow() throws IOException, ClassNotFoundException {
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/client/mainwindow/LessonsWindow.fxml"));
-        Parent mainScene = fxmlLoader.load();
-        LessonsWindowController mainController = fxmlLoader.getController();
-        mainController.init(primaryStage, clientSocket, serverInput, clientOutput, SOCKET_HOST, SOCKET_PORT, user);
-        this.primaryStage.setScene(new Scene(mainScene, 600, 400));
     }
 }

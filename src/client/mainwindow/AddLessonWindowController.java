@@ -1,5 +1,7 @@
 package client.mainwindow;
 
+import client.Debug;
+import client.socketmanager.SocketManager;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -24,12 +26,7 @@ import java.time.format.DateTimeParseException;
 
 public class AddLessonWindowController {
     private Stage primaryStage;
-
-    private Socket clientSocket;
-    private ObjectInputStream serverInput;
-    private ObjectOutputStream clientOutput;
-    private String SOCKET_HOST;
-    private int SOCKET_PORT;
+    private SocketManager socketManager;
     private User user;
 
     @FXML
@@ -47,84 +44,79 @@ public class AddLessonWindowController {
             Alert(Alert.AlertType.ERROR, "Add status", "Add failed!", "Fields must not be empty!");
         } else {
             String inputTimeString = fieldTime.getText();
+
             try {
                 LocalTime.parse(inputTimeString);
-                if(fieldText.getLength() >= 512) {
-                    Alert(Alert.AlertType.ERROR, "Add status", "Add failed!", "Text is too long!");
+            } catch (DateTimeParseException | NullPointerException ex) {
+                if(Debug.debug_mode) {
+                    System.err.println("Invalid time string: " + inputTimeString);
                 }
-                else {
-                    LocalDate localDate = datePicker.getValue();
-                    String date = datePicker.getValue().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+            }
 
-                    String command = "add:"+date+":"+fieldTime.getText()+":"+ fieldName.getText() +":"+fieldText.getText()+":"+
-                            this.user.getUsername()+":"+this.user.getPassword();
-                    try {
-                        clientOutput.writeObject(command);
-                        clientOutput.flush();
-                    } catch (IOException ioException) {
-                        System.err.println("Error sending delete info, server might be down");
+            if(fieldText.getLength() >= 512) {
+                Alert(Alert.AlertType.ERROR, "Add status", "Add failed!", "Text is too long!");
+            }
+            else {
+                LocalDate localDate = datePicker.getValue();
+                String date = datePicker.getValue().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+                String command = "add:"+date+":"+fieldTime.getText()+":"+ fieldName.getText() +":"+fieldText.getText()+":"+
+                        this.user.getUsername()+":"+this.user.getPassword();
+
+                try {
+                    socketManager.clientOutput.writeObject(command);
+                    socketManager.clientOutput.flush();
+                    String serverResponse;
+                    serverResponse = (String)socketManager.serverInput.readObject();
+
+                    if(serverResponse.equals("add:failed")) {
+                        Alert(Alert.AlertType.ERROR, "Add status" ,"Add failed!","Something went wrong!");
+                    } else {
+                        this.user = (User)socketManager.serverInput.readObject();
+                        Alert(Alert.AlertType.INFORMATION, "Add status" ,"Add successfull!","Lesson added!");
+                    }
+
+                } catch (IOException ioException) {
+                    if(Debug.debug_mode) {
+                        System.err.println("Error sending bookout info, server might be down");
                         System.err.println(ioException.getMessage());
                     }
-
-                    try {
-                        String serverResponse;
-                        serverResponse = (String)serverInput.readObject();
-                        if(serverResponse.equals("add:failed")) {
-                            Alert(Alert.AlertType.ERROR, "Add status" ,"Add failed!","Something went wrong!");
-                        } else {
-                            try {
-                                this.user = (User) serverInput.readObject();
-                                if (this.user == null) {
-                                    System.err.println("Returned user is null");
-                                }
-                                Alert(Alert.AlertType.INFORMATION, "Add status" ,"Add successfull!","Lesson added!");
-                            } catch (ClassNotFoundException classNotFoundException) {
-                                Alert(Alert.AlertType.ERROR, "Add status" ,"Add failed!","Error fetching user info!");
-                                System.err.println("Invalid class input exception");
-                                classNotFoundException.printStackTrace();
-                            }
-                        }
-                    } catch (IOException ioException) {
-                        System.err.println("Lost connection!");
-                        reconnect();
-                    } catch (ClassNotFoundException classNotFoundException) {
-                        System.err.println("This should not happen!");
+                    reconnect();
+                } catch (ClassNotFoundException classNotFoundException) {
+                    if(Debug.debug_mode) {
+                        System.err.println("Trying to get non-existent class!");
                         classNotFoundException.printStackTrace();
                     }
-
-
-
                 }
-            } catch (DateTimeParseException | NullPointerException ex) {
-                System.err.println("Invalid time string: " + inputTimeString);
+
             }
         }
+
     }
 
-    public void btnBackHandler(ActionEvent e) throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/client/mainwindow/LessonsWindow.fxml"));
-        Parent mainScene = fxmlLoader.load();
-        LessonsWindowController mainController = fxmlLoader.getController();
-        mainController.init(primaryStage, clientSocket, serverInput, clientOutput, SOCKET_HOST, SOCKET_PORT, user);
-        this.primaryStage.setScene(new Scene(mainScene, 600, 400));
+    public void btnBackHandler(ActionEvent e) {
+        openLessonsWindow();
     }
 
     public void reconnect() {
         try {
-            this.clientSocket = new Socket(SOCKET_HOST, SOCKET_PORT);
-            this.clientSocket.setSoTimeout(5000);
-            this.clientOutput = new ObjectOutputStream(this.clientSocket.getOutputStream());
-            this.clientOutput.flush();
-            this.serverInput = new ObjectInputStream(this.clientSocket.getInputStream());
-            this.SOCKET_HOST = this.clientSocket.getInetAddress().getHostAddress();
-            this.SOCKET_PORT = this.clientSocket.getPort();
+            socketManager.reconnect();
         } catch(ConnectException e) {
-            System.err.println("Connection failed.");
-            System.err.println(e.getMessage());
+            if(Debug.debug_mode) {
+                System.err.println("Connection failed.");
+                System.err.println(e.getMessage());
+            }
         } catch(IOException e) {
-            System.err.println("Exception while opening Reader and Printer in reconnect()");
-            System.err.println(e.getMessage());
+            if(Debug.debug_mode) {
+                System.err.println("Exception while opening Reader and Printer in reconnect()");
+                System.err.println(e.getMessage());
+            }
         }
+    }
+
+    public void init(Stage primaryStage, SocketManager socketManager, User user) {
+        this.primaryStage = primaryStage;
+        this.socketManager = socketManager;
+        this.user = user;
     }
 
     private void Alert(Alert.AlertType type, String title, String header, String message) {
@@ -135,19 +127,19 @@ public class AddLessonWindowController {
         alert.show();
     }
 
-    public void init(Stage primaryStage,
-                     Socket clientSocket,
-                     ObjectInputStream serverInput,
-                     ObjectOutputStream clientOutput,
-                     String SOCKET_HOST,
-                     int SOCKET_PORT,
-                     User user) {
-        this.primaryStage = primaryStage;
-        this.clientSocket = clientSocket;
-        this.serverInput = serverInput;
-        this.clientOutput = clientOutput;
-        this.SOCKET_HOST = SOCKET_HOST;
-        this.SOCKET_PORT = SOCKET_PORT;
-        this.user = user;
+    private void openLessonsWindow() {
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/client/mainwindow/LessonsWindow.fxml"));
+            Parent mainScene = fxmlLoader.load();
+            LessonsWindowController mainController = fxmlLoader.getController();
+            mainController.init(primaryStage, socketManager, user);
+            this.primaryStage.setScene(new Scene(mainScene, 600, 400));
+        } catch (IOException ioException) {
+            if(Debug.debug_mode)
+            {
+                ioException.printStackTrace();
+            }
+        }
     }
+
 }
