@@ -1,3 +1,5 @@
-# Front end for Gym Reservation System
+# Front end for gym reservation system
 
-GUI using JavaFX
+Desktop application written in java
+GUI done using JavaFX
+Communicates over sockets with backend
